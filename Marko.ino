@@ -52,7 +52,7 @@ namespace CFG {
 // -- GLOBALS -- //
 unsigned MOISTURE = 0; // Moisture level (%)
 bool VALVE_OPEN = false; // VALVE OPEN/CLOSE status
-unsigned LCD_TIMER = 0; // LCD refresh timer (to track refresh rate)
+unsigned long LCD_TIMER = 0; // LCD refresh timer (to track refresh rate)
 char LCD_ROW_0[17] = "SPRINKLER SYSTEM"; // LCD row 0 string (size: 16 chars + stop)
 char LCD_ROW_1[17] = "Starting..."; // LCD row 1 string (size: 16 chars + stop)
 
@@ -106,8 +106,8 @@ void updateMoisture() {
 
 // -- SETUP -- //
 void setup() {
-  initValve(); // Moisture sensor init
-  initLCD(); // LCD init
+  initMoistureSensor();
+  initLCD(); 
   initValve();
 
   Serial.begin(9600);
