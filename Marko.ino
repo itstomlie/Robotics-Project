@@ -1,5 +1,5 @@
 /*
-  assignment_project.ino
+  Marko.ino
   Author: Marko Koiduste (22563501)
   Institution: Curtin University
 
@@ -21,6 +21,7 @@
 
 // -- CONFIG -- //
 namespace CFG {
+
   // LCD pins
   constexpr int LCD_RS = 12;
   constexpr int LCD_E = 11;
@@ -43,20 +44,17 @@ namespace CFG {
   constexpr int SERVO_ANGLE_MID = 45;
   constexpr int SERVO_ANGLE_CLOSE = 0;
 
-  // Default valve behavior - hysteresis LOW/HIGH
-  // SETTINGS: Moisture management low and high levels.
+  // Default valve behavior - hysteresis LOW/HIGH - SET default levels here
   constexpr int OPEN_BELOW_PCT = 30;     // LOW level (Moisture %)
   constexpr int CLOSE_ABOVE_PCT = 70;    // HIGH level (Moisture %)
-
-
 }
 
 // -- GLOBALS -- //
 unsigned MOISTURE = 0; // Moisture level (%)
 bool VALVE_OPEN = false; // VALVE OPEN/CLOSE status
 unsigned LCD_TIMER = 0; // LCD refresh timer (to track refresh rate)
-char LCD_ROW_0[17] = "SPRINKLER SYSTEM"; // LCD row 0 string (16 chars + stop)
-char LCD_ROW_1[17] = "Starting..."; // LCD row 1 string (16 chars + stop)
+char LCD_ROW_0[17] = "SPRINKLER SYSTEM"; // LCD row 0 string (size: 16 chars + stop)
+char LCD_ROW_1[17] = "Starting..."; // LCD row 1 string (size: 16 chars + stop)
 
 // -- LCD -- //
 LiquidCrystal lcd(CFG::LCD_RS, CFG::LCD_E, CFG::LCD_D4, CFG::LCD_D5, CFG::LCD_D6, CFG::LCD_D7);
@@ -100,11 +98,10 @@ void initMoistureSensor() {
   pinMode(CFG::PIN_MOISTURE, INPUT);
 }
 
-int readMoisture() {
+void updateMoisture() {
   // Reads 0-1023 value from moisture sensor and converts to 0-100% 
   int read = analogRead(CFG::PIN_MOISTURE); 
-  int moisture = map(read, 0, 1023, 0, 100); 
-  return moisture;
+  MOISTURE = map(read, 0, 1023, 0, 100);
 }
 
 // -- SETUP -- //
@@ -118,7 +115,7 @@ void setup() {
 
 // -- LOOP -- //
 void loop() {
-  MOISTURE = readMoisture(); // Update moisture %
+  updateMoisture(); // Reads & updates global MOISTURE %
   resolveValve(); // Resolve valve position
 
   // Refresh LCD at given rate
