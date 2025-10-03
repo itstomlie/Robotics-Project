@@ -1,4 +1,5 @@
 #include <Servo.h>
+#include <Wire.h>
 
 // -------- Pins --------
 const int PIN_LDR = A1;   // LDR + 10k divider
@@ -17,6 +18,10 @@ Servo vent;
 bool ventOn = false;
 int currentAngle = 0;
 unsigned long lastUI = 0;
+
+int TEMP;
+int LIGHT;
+int AIR;
 
 // ===== Utilities =====
 int smoothAnalog(int pin) {
@@ -100,10 +105,34 @@ int readAirQPercentQuiet() {
   return (int)pct;
 }
 
+inline void writeIntToWire(int v){
+  byte low = (byte)(v & 0xFF);
+  byte high = (byte)((v >> 8) & 0xFF);
+  Wire.write(low);
+  Wire.write(high);
+}
+
+void onRequestHandler() {
+  writeIntToWire(TEMP);
+  writeIntToWire(AIR);
+  writeIntToWire(LIGHT);
+}
+bool toggleLight = false;
+void onReceiveHandler(int n) {
+  if (Wire.available()) {
+    Serial.println("Incoming comms");
+    byte b = Wire.read();
+    if (b == 0x01) digitalWrite(LED_BUILTIN, HIGH);
+    else digitalWrite(LED_BUILTIN, LOW);
+  }
+}
+
 
 // ===== Setup/Loop =====
 void setup() {
   pinMode(PIN_LED, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
   digitalWrite(PIN_LED, LOW);
 
   // RESET SERVO TO BASE 0 DEGREES ON STARTUP
@@ -116,6 +145,10 @@ void setup() {
   Serial.println(F("Vent Control: light + temperature + air quality"));
   Serial.println(F("Servo starts at 0° (closed), opens to 180° when triggered"));
   Serial.println(F("T[C], L[%], AQ[%], Vent"));
+
+  Wire.begin(0x08);
+  Wire.onRequest(onRequestHandler);
+  Wire.onReceive(onReceiveHandler);
 }
 
 void loop() {
@@ -123,6 +156,9 @@ void loop() {
   float tempC = readTempCSmooth();
   int airQP = 100 - readAirQPercentQuiet();  // Inverted so lower = worse air
 
+  LIGHT = lightP;
+  TEMP = tempC;
+  AIR = airQP;
   // SERVO CONTROL LOGIC:
   // Open vent (180°) if ANY trigger is active:
   // - Light > 15%

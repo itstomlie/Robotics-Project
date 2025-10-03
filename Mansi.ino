@@ -1,10 +1,15 @@
 #include <Servo.h>
+#include <Wire.h>
 
 // Pin definitions
 const int trigPin = 9;     // Ultrasonic trigger pin
 const int echoPin = 10;    // Ultrasonic echo pin
 const int tempPin = A0;    // Temperature sensor pin (LM35)
 const int servoPin = 6;    // Servo motor pin
+
+// globals
+int LEVEL;
+int TEMP;
 
 // Servo object
 Servo pumpServo;
@@ -35,6 +40,8 @@ long getWaterLevel() {
 
   // Water level = Tank height - distance from sensor
   long waterLevel = tankHeight - distance;
+  Serial.println(distance);
+  Serial.println(waterLevel);
   return waterLevel;
 }
 
@@ -46,6 +53,19 @@ float getTemperature() {
   return tempC;
 }
 
+//I2C
+inline void writeIntToWire(int v){
+  byte low = (byte)(v & 0xFF);
+  byte high = (byte)((v >> 8) & 0xFF);
+  Wire.write(low);
+  Wire.write(high);
+}
+
+void onRequestHandler() {
+  writeIntToWire(LEVEL);
+  writeIntToWire(TEMP);
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -53,11 +73,20 @@ void setup() {
   pinMode(echoPin, INPUT);
   pumpServo.attach(servoPin);
   pumpServo.write(0); // Pump off initially
+
+  
+  Wire.begin(0x09);
+  Wire.onRequest(onRequestHandler);
 }
 
 void loop() {
   long waterLevel = getWaterLevel();
   float temperature = getTemperature();
+
+  Serial.println("Water level" + (int)waterLevel);
+  Serial.println(((int) waterLevel * (int) 100) / (int) tankHeight);
+  LEVEL = (int) ((int) waterLevel * (int) 100) / (int) tankHeight;
+  TEMP = (int) temperature;
 
   Serial.print("Water Level: ");
   Serial.print(waterLevel);
@@ -82,6 +111,6 @@ void loop() {
     Serial.println("Pump OFF - Conditions not met");
   }
 
-  delay(2000); // Check every 2 seconds
+  delay(500); // Check every 2 seconds
 }
 

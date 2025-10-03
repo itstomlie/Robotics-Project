@@ -12,6 +12,7 @@ const int PIN_B = 5;   // Blue
 const uint8_t MPU_ADDR = 0x69;
 
 bool lightOn = false;
+bool toggleLight = false;
 
 // ----------- Intensity Settings -----------
 // Lower values = brighter (common anode logic)
@@ -76,6 +77,20 @@ void setupMPU() {
   Wire.endTransmission();
 }
 
+// I2C commands
+
+void onReceiveHandler(int n) {
+  if (Wire.available()) {
+    Serial.println("Incoming comms");
+    byte b = Wire.read(); 
+    if (b == 0xFF){
+      toggleLight != toggleLight;
+    } else {
+      toggleLight = (b != 0x00);
+    }
+  }
+}
+
 // ----------- Setup -----------
 void setup() {
   pinMode(PIN_R, OUTPUT);
@@ -87,18 +102,19 @@ void setup() {
   analogWrite(PIN_B, 255);
 
   Serial.begin(9600);
-  Wire.begin();
+  Wire.begin(0x0A);
+  Wire.onReceive(onReceiveHandler);
 
-  if (!rtc.begin()) {
-    Serial.println("ERROR: RTC not found.");
-    while (1);
-  }
-  if (!rtc.isrunning()) {
-    Serial.println("RTC not running; setting to compile time.");
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  }
+  //if (!rtc.begin()) {
+  //  Serial.println("ERROR: RTC not found.");
+  //  while (1);
+  //}
+  //if (!rtc.isrunning()) {
+  //  Serial.println("RTC not running; setting to compile time.");
+  //  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  //}
 
-  setupMPU();
+  //setupMPU();
 
   Serial.println("RTC + MPU6050 + Grow Light demo with intensity control.");
 }
@@ -108,7 +124,8 @@ void loop() {
   DateTime now = rtc.now();
 
   // Switch light ON during even minutes
-  bool shouldOn = (now.minute() % 2 == 0);
+  Serial.println(toggleLight);
+  bool shouldOn = (now.minute() % 2 == 0) || toggleLight;
 
   // Switch mode based on hour (veg in morning, flower in evening)
   int mode = (now.hour() < 12) ? 0 : 1;
@@ -119,7 +136,7 @@ void loop() {
   }
 
   // Read vibration
-  float vib = readAccelG();
+  //float vib = readAccelG();
 
   // Print clean status
   char buf[20];
@@ -129,12 +146,12 @@ void loop() {
   Serial.print(buf);
   Serial.print(" | LIGHT: ");
   Serial.print(lightOn ? (mode == 0 ? "ON (VEG)" : "ON (FLOWER)") : "OFF");
-  Serial.print(" | VIB: ");
-  Serial.print(vib, 2);
-  if (vib > 0.20) {
-    Serial.print("  ALERT: High vibration!");
-  }
+  //Serial.print(" | VIB: ");
+  //Serial.print(vib, 2);
+  //if (vib > 0.20) {
+  //  Serial.print("  ALERT: High vibration!");
+  //}
   Serial.println();
 
-  delay(1000);
+  delay(500);
 }

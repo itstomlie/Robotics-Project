@@ -136,31 +136,69 @@ void initI2C() {
   for (int i = 0; i < (int)ReadingType::COUNT; i++) READING_VALUES[i] = -1;
 }
 
+// === byte/int helpers ===
+inline void intToBytes(int v, byte out[2]) {
+  out[0] = (byte)(v & 0xFF);
+  out[1] = (byte)((v >> 8) & 0xFF);
+}
+inline int bytesToInt(const byte in[2]) {
+  return (int)((byte)in[0] | ((byte)in[1] << 8));
+}
+inline void unsignedToBytes(unsigned v, byte out[2]) {
+  out[0] = (byte)(v & 0xFF);
+  out[1] = (byte)((v >> 8) & 0xFF);
+}
+inline unsigned bytesToUnsigned(const byte in[2]) {
+  return (unsigned)((byte)in[0] | ((byte)in[1] << 8));
+}
+
+bool TOGGLE_LIGHT = false;
+
 void pollEnvData() {
-  Wire.requestFrom((int)CFG::TOM_ADDR, 3);
-  if (Wire.available() == 3) {
-    int temp = Wire.read();
-    int air = Wire.read();
-    int light = Wire.read();
+  Wire.requestFrom((int)CFG::TOM_ADDR, 3 * sizeof(int));
+  if (Wire.available() == 3* sizeof(int)) {
+    byte b[2];
+    Wire.readBytes((char*)b, 2);
+    int temp = bytesToInt(b);
+    Wire.readBytes((char*)b, 2);
+    int air = bytesToInt(b);
+    Wire.readBytes((char*)b, 2);
+    int light = bytesToInt(b);
+
+    if (light < 25) TOGGLE_LIGHT = true;
+    else TOGGLE_LIGHT = false;
+
     formatEnvDataRow(temp, air, light);
     refreshDataRows();
   }
 }
 
 void pollTankData() {
-  Wire.requestFrom((int)CFG::MANSI_ADDR, 2);
-  if (Wire.available() == 2) {
-    int level = Wire.read();
-    int temp = Wire.read();
+  Wire.requestFrom((int)CFG::MANSI_ADDR, 2 * sizeof(int));
+  if (Wire.available() == 2 * sizeof(int)) {
+    byte b[2];
+    Wire.readBytes((char*)b, 2);
+    int level = bytesToInt(b);
+    Wire.readBytes((char*)b, 2);
+    int temp = bytesToInt(b);
     formatTankDataRow(temp, level);
     refreshDataRows();
   }
 }
 
+void toggleSystemLights(){
+  Wire.beginTransmission(CFG::TOM_ADDR);
+  Wire.write((byte) (TOGGLE_LIGHT ? 1 : 0));
+  Wire.endTransmission();
+}
+
 void i2cTick(unsigned long now) {
   if (now - I2C_TIMER >= (int)CFG::I2C_RR) {
+    I2C_TIMER = now;
+    Serial.println("I2C Tick");
     pollEnvData();
     pollTankData();
+    if (TOGGLE_LIGHT) toggleSystemLights();
   }
 }
 
@@ -177,7 +215,7 @@ void refreshLCD() {
 void initLCD() {
   DISPLAY_TIMER = millis();
   lcd.begin(CFG::LCD_COLS, CFG::LCD_ROWS);
-  lcd.clear();
+  lcd.clear(); 
   refreshLCD();
 }
 
